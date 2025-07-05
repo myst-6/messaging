@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,green \"pnpm --filter conversations-backend dev\" \"pnpm --filter conversations-frontend dev\"",
-    "deploy": "pnpm --filter conversations-backend deploy && pnpm --filter conversations-frontend deploy",
+    "deploy": "pnpm --filter conversations-backend deploy",
     "typegen": "pnpm --filter conversations-backend cf-typegen"
   },
   "keywords": [],

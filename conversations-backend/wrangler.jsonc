@@ -25,6 +25,12 @@
 				"ThingsObject"
 			],
 			"tag": "v2"
+		},
+		{
+			"new_sqlite_classes": [
+				"ConversationObject"
+			],
+			"tag": "v3"
 		}
 	],
 	"durable_objects": {
@@ -36,9 +42,14 @@
 			{
 				"class_name": "ThingsObject",
 				"name": "THINGS_DO"
+			},
+			{
+				"class_name": "ConversationObject",
+				"name": "CONVERSATION_DO"
 			}
 		]
 	},
+
 	"observability": {
 		"enabled": true
 	}

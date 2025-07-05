@@ -2,6 +2,7 @@ import { Context, Hono, Next } from 'hono';
 import { cors } from 'hono/cors';
 import counterApp, { AppRoutes as CounterRoutes } from './counter';
 import thingsApp, { AppRoutes as ThingsRoutes } from './things';
+import conversationApp, { AppRoutes as ConversationRoutes } from './conversation';
 
 export type DurableObjectStubs = {
 	[K in keyof Env]: Env[K] extends DurableObjectNamespace<infer D> ? DurableObjectStub<D> : never;
@@ -27,15 +28,16 @@ app.use(
 	cors({
 		origin: '*', // allow from any origin
 		allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-		allowHeaders: ['Content-Type'],
+		allowHeaders: ['Content-Type', 'Upgrade'],
 	})
 );
 
 app.route('/', counterApp);
 app.route('/', thingsApp);
+app.route('/', conversationApp);
 
 app.notFound((c) => c.json({ error: 'Not Found :o' }, 404));
 
-export type AppRoutes = CounterRoutes | ThingsRoutes;
+export type AppRoutes = CounterRoutes | ThingsRoutes | ConversationRoutes;
 
 export default app;

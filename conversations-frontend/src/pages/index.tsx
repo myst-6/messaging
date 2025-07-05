@@ -6,6 +6,7 @@ export default function Home() {
       <Heading>Home</Heading>
       <Link href="/counter">Counter</Link>
       <Link href="/things">Things</Link>
+      <Link href="/conversation">Conversation</Link>
     </Flex>
   );
 }
