@@ -1,0 +1,20 @@
+{
+	"name": "conversations-backend",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"cf-typegen": "wrangler types"
+	},
+	"devDependencies": {
+		"typescript": "^5.5.2",
+		"wrangler": "^4.23.0"
+	},
+	"dependencies": {
+		"@hono/zod-validator": "^0.7.0",
+		"hono": "^4.8.4",
+		"zod": "^3.25.74"
+	}
+}
