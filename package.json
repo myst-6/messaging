@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,green \"pnpm --filter conversations-backend dev\" \"pnpm --filter conversations-frontend dev\"",
     "deploy": "pnpm --filter conversations-backend deploy",
-    "typegen": "pnpm --filter conversations-backend cf-typegen"
+    "typegen": "pnpm --filter conversations-backend cf-typegen",
+    "build": "pnpm --filter conversations-frontend build"
   },
   "keywords": [],
   "author": "",

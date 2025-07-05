@@ -1,9 +1,9 @@
-# How to run
+# Development
 
-Create `.env.local` with e.g. `NEXT_PUBLIC_API_BASE_URL=http://localhost:8787` or whatever port it is for your cloudflare.
+Create `.env.local` with e.g. `NEXT_PUBLIC_API_BASE_URL=http://localhost:8787` or whatever port it is for your cloudflare. And then `NEXT_PUBLIC_WEBSOCKET_BASE_URL=ws://localhost:8787` or similar for your websocket.
 
-Create `.env.production` with e.g. `NEXT_PUBLIC_API_BASE_URL=https://projname.username.workers.dev/` for your cloudflare production url.
+Then just run `pnpm dev` in the root dir.
 
-Then just run `pnpm dev` or `pnpm deploy` in the root dir.
+# Deployment
 
-TODO: need to host the nextjs frontend somewhere on `pnpm deploy`
+Run `pnpm build` to generate static nextjs assets and `pnpm deploy` to deploy cloudflare workers and DOs. Use cloudflare pages or vercel to host nextjs page.
