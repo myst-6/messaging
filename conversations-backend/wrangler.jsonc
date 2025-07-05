@@ -28,7 +28,8 @@
 		},
 		{
 			"new_sqlite_classes": [
-				"ConversationObject"
+				"ConversationObject",
+				"ThingsObject"
 			],
 			"tag": "v3"
 		}
