@@ -1,0 +1,3 @@
+packages:
+  - "conversations-frontend"
+  - "conversations-backend"
