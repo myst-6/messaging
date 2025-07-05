@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "lint": "next lint",
+    "clean": "rm -rf .next && rm -rf out && rm -rf node_modules && pnpm i",
+    "clean:win": "if exist .next rmdir /s /q .next && if exist out rmdir /s /q out && if exist node_modules rmdir /s /q node_modules && pnpm i",
     "deploy": "pnpm exec wrangler pages deploy out"
   },
   "dependencies": {
