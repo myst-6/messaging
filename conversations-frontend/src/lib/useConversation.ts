@@ -21,6 +21,14 @@ export type SystemMessage = {
       type: "user_left";
       userId: string;
     }
+  | {
+      type: "start_typing";
+      userId: string;
+    }
+  | {
+      type: "stop_typing";
+      userId: string;
+    }
 );
 
 export function useConversation(
@@ -84,6 +92,28 @@ export function useConversation(
               { id: crypto.randomUUID(), system: true, type: "welcome" },
             ]);
             break;
+          case "start_typing":
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: crypto.randomUUID(),
+                system: true,
+                type: "start_typing",
+                userId: message.data.userId,
+              },
+            ]);
+            break;
+          case "stop_typing":
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: crypto.randomUUID(),
+                system: true,
+                type: "stop_typing",
+                userId: message.data.userId,
+              },
+            ]);
+            break;
         }
       } catch (error) {
         console.error("Error parsing WebSocket message:", error);
@@ -108,5 +138,27 @@ export function useConversation(
     });
   }
 
-  return { messages, sendMessage } as const;
+  function sendTyping() {
+    if (!token) return;
+
+    client.conversation.typing.$post({
+      json: {
+        token,
+        conversationId,
+      },
+    });
+  }
+
+  function sendStopTyping() {
+    if (!token) return;
+
+    client.conversation["stop-typing"].$post({
+      json: {
+        token,
+        conversationId,
+      },
+    });
+  }
+
+  return { messages, sendMessage, sendTyping, sendStopTyping } as const;
 }

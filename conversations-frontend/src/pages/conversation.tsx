@@ -26,10 +26,14 @@ export default function Conversation() {
   const [dismissedMessages, setDismissedMessages] = useState<Set<string>>(
     new Set()
   );
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { getUsername } = useUsers();
 
-  const { messages, sendMessage } = useConversation(
+  const { messages, sendMessage, sendTyping, sendStopTyping } = useConversation(
     currentConversationId,
     user?.userId,
     token
@@ -43,6 +47,42 @@ export default function Conversation() {
     scrollToBottom();
   }, [messages]);
 
+  // Handle typing indicators
+  useEffect(() => {
+    // Process typing messages
+    const typingMessages = messages.filter(
+      (message) =>
+        "system" in message &&
+        (message.type === "start_typing" || message.type === "stop_typing")
+    );
+
+    setTypingUsers((prev) => {
+      const newTypingUsers = new Set(prev);
+
+      typingMessages.forEach((message) => {
+        if (message.type === "start_typing") {
+          newTypingUsers.add(message.userId);
+        } else if (message.type === "stop_typing") {
+          newTypingUsers.delete(message.userId);
+        }
+      });
+
+      return newTypingUsers;
+    });
+  }, [messages]);
+
+  // Cleanup typing timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/auth");
@@ -53,6 +93,10 @@ export default function Conversation() {
     if (conversationId.trim()) {
       setCurrentConversationId(conversationId.trim());
       setDismissedMessages(new Set()); // Reset dismissed messages when joining new conversation
+      setTypingUsers(new Set()); // Reset typing indicators when joining new conversation
+
+      // Stop current typing indicators
+      stopTyping();
     }
   };
 
@@ -68,12 +112,52 @@ export default function Conversation() {
       conversationId: currentConversationId,
     });
     setMessageInput("");
+
+    // Stop typing indicators when message is sent
+    stopTyping();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleTyping = () => {
+    if (!isTyping) {
+      setIsTyping(true);
+      sendTyping();
+
+      // Set up interval to send typing indicator every 3 seconds
+      typingIntervalRef.current = setInterval(() => {
+        sendTyping();
+      }, 3000);
+    }
+
+    // Reset the 5-second timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      stopTyping();
+    }, 5000);
+  };
+
+  const stopTyping = () => {
+    if (isTyping) {
+      setIsTyping(false);
+      sendStopTyping();
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
     }
   };
 
@@ -96,7 +180,7 @@ export default function Conversation() {
 
   return (
     <Container maxW="container.lg" py={4}>
-      <VStack gap={4}>
+      <VStack gap={4} h="95vh">
         {/* Header */}
         <HStack w="full" p={4} bg="gray.50" borderRadius="lg">
           <Heading size="md">Conversation</Heading>
@@ -156,6 +240,14 @@ export default function Conversation() {
           <VStack gap={3} align="stretch">
             {messages
               .filter((message) => !dismissedMessages.has(message.id))
+              .filter(
+                (message) =>
+                  !(
+                    "system" in message &&
+                    (message.type === "start_typing" ||
+                      message.type === "stop_typing")
+                  )
+              )
               .map((message) => {
                 if ("system" in message) {
                   // System message - display as dismissible notification
@@ -247,12 +339,35 @@ export default function Conversation() {
           </VStack>
         </Box>
 
+        {/* Typing Indicators */}
+        {typingUsers.size > 0 && (
+          <Box w="full" p={3} bg="gray.100" borderRadius="lg">
+            <Text fontSize="sm" color="gray.600" fontStyle="italic">
+              {Array.from(typingUsers)
+                .map((userId) => getUsername(userId))
+                .join(", ")}{" "}
+              {typingUsers.size === 1 ? "is" : "are"} typing...
+            </Text>
+          </Box>
+        )}
+
         {/* Message Input */}
         <HStack w="full" gap={3}>
           <Input
             placeholder="Type your message..."
             value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              setMessageInput(newValue);
+
+              if (newValue.trim() === "") {
+                // Stop typing if textbox is cleared
+                stopTyping();
+              } else {
+                // Continue typing if there's content
+                handleTyping();
+              }
+            }}
             onKeyDown={handleKeyPress}
             size="lg"
           />

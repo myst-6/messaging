@@ -18,7 +18,13 @@ const sendMessageSchema = z.object({
 	conversationId: z.string().min(1),
 });
 
+const typingSchema = z.object({
+	token: z.string().min(1),
+	conversationId: z.string().min(1),
+});
+
 export type MessageDraft = Omit<z.infer<typeof sendMessageSchema>, 'token'>;
+export type TypingDraft = Omit<z.infer<typeof typingSchema>, 'token'>;
 
 const routes = [
 	app.get('/join', async (c) => {
@@ -62,6 +68,16 @@ const routes = [
 		};
 		await c.get('CONVERSATION_DO').storeMessage(message);
 		return c.json({ success: true, message });
+	}),
+	app.post('/typing', zValidator('json', typingSchema), async (c) => {
+		const authUser = c.get('authUser');
+		await c.get('CONVERSATION_DO').handleTyping(authUser.userId.toString());
+		return c.json({ success: true });
+	}),
+	app.post('/stop-typing', zValidator('json', typingSchema), async (c) => {
+		const authUser = c.get('authUser');
+		await c.get('CONVERSATION_DO').stopTyping(authUser.userId.toString());
+		return c.json({ success: true });
 	}),
 ] as const;
 
