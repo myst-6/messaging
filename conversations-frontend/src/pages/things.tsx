@@ -64,7 +64,6 @@ function ThingManager() {
 
   return (
     <>
-      <Toaster />
       <Box maxW="md" mx="auto" mt={10} p={5} borderWidth={1} borderRadius="lg">
         <VStack gap={4} align="stretch">
           <Text fontSize="2xl" fontWeight="bold">

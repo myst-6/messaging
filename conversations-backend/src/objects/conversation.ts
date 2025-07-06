@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 
-export interface Message extends Record<string, SqlStorageValue> {
+export interface Message {
 	id: string;
 	userId: string;
 	content: string;
@@ -23,18 +23,24 @@ export type WebsocketMessage =
 	| {
 			type: 'user_left';
 			data: { userId: string };
+	  }
+	| {
+			type: 'ping';
+	  }
+	| {
+			type: 'welcome';
 	  };
 
 export class ConversationObject extends DurableObject<Env> {
 	private participants: Map<string, WebSocket> = new Map();
+	private heartbeatIntervals: Map<string, number> = new Map();
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
 		this.initialize();
 	}
 
-	initialize() {
-		// Create the messages table if it doesn't exist
+	async initialize() {
 		this.ctx.storage.sql.exec(`
 			CREATE TABLE IF NOT EXISTS messages (
 				id TEXT PRIMARY KEY,
@@ -52,75 +58,33 @@ export class ConversationObject extends DurableObject<Env> {
 			return new Response('User ID is required', { status: 400 });
 		}
 
-		// Creates two ends of a WebSocket connection.
 		const webSocketPair = new WebSocketPair();
 		const [client, server] = Object.values(webSocketPair);
 
-		// Accept the server WebSocket and store it in participants
 		this.ctx.acceptWebSocket(server);
 		this.participants.set(userId, server);
+		this.startHeartbeat(userId, server);
 
-		// Send welcome message and recent messages
-		const recentMessages = this.getRecentMessages(50);
-		this.broadcastToUser(userId, {
+		const recentMessages = await this.getRecentMessages(50);
+		await this.broadcastToUser(userId, {
 			type: 'history',
 			data: recentMessages,
 		});
-		this.broadcastToUser(userId, {
-			type: 'message',
-			data: {
-				id: crypto.randomUUID(),
-				userId: 'system',
-				content: `Welcome ${userId}! You've joined the conversation.`,
-				timestamp: Date.now(),
-			},
+		await this.broadcastToUser(userId, {
+			type: 'welcome',
 		});
 
-		// Notify other participants
-		this.broadcastToOthers(userId, {
+		await this.broadcastToOthers(userId, {
 			type: 'user_joined',
 			data: { userId },
 		});
 
-		// Handle incoming messages
-		server.addEventListener('message', async (event) => {
-			try {
-				const data = JSON.parse(event.data as string);
-
-				if (data.type === 'message') {
-					const message: Message = {
-						id: crypto.randomUUID(),
-						userId,
-						content: data.content,
-						timestamp: Date.now(),
-					};
-
-					this.storeMessage(message);
-				}
-			} catch (error) {
-				console.error('Error handling WebSocket message:', error);
-				server.send(
-					JSON.stringify({
-						type: 'error',
-						data: { message: 'Invalid message format' },
-					})
-				);
-			}
+		server.addEventListener('close', async () => {
+			this.cleanupUser(userId);
 		});
 
-		// Handle WebSocket close
-		server.addEventListener('close', () => {
-			this.participants.delete(userId);
-			this.broadcastToOthers(userId, {
-				type: 'user_left',
-				data: { userId },
-			});
-		});
-
-		// Handle WebSocket errors
 		server.addEventListener('error', (error) => {
-			console.error('WebSocket error:', error);
-			this.participants.delete(userId);
+			this.cleanupUser(userId);
 		});
 
 		return new Response(null, {
@@ -129,8 +93,28 @@ export class ConversationObject extends DurableObject<Env> {
 		});
 	}
 
-	getRecentMessages(limit: number = 50): Message[] {
-		const cursor = this.ctx.storage.sql.exec<Message>(
+	private startHeartbeat(userId: string, ws: WebSocket) {
+		const interval = setInterval(() => this.broadcastToAll({ type: 'ping' }), 5000);
+		this.heartbeatIntervals.set(userId, interval as any);
+	}
+
+	private cleanupUser(userId: string) {
+		const interval = this.heartbeatIntervals.get(userId);
+		if (interval) {
+			clearInterval(interval);
+			this.heartbeatIntervals.delete(userId);
+		}
+
+		this.participants.delete(userId);
+
+		this.broadcastToOthers(userId, {
+			type: 'user_left',
+			data: { userId },
+		});
+	}
+
+	async getRecentMessages(limit: number = 50): Promise<Message[]> {
+		const cursor = this.ctx.storage.sql.exec(
 			`
 			SELECT id, userId, content, timestamp
 			FROM messages
@@ -140,10 +124,10 @@ export class ConversationObject extends DurableObject<Env> {
 			limit
 		);
 
-		return cursor.toArray().reverse(); // Return in chronological order
+		return cursor.toArray().reverse() as unknown as Message[];
 	}
 
-	broadcastToUser(userId: string, message: WebsocketMessage) {
+	async broadcastToUser(userId: string, message: WebsocketMessage) {
 		const messageStr = JSON.stringify(message);
 		const ws = this.participants.get(userId);
 		if (ws && ws.readyState === WebSocket.OPEN) {
@@ -151,18 +135,18 @@ export class ConversationObject extends DurableObject<Env> {
 		}
 	}
 
-	broadcastToAll(message: WebsocketMessage) {
-		console.log('broadcasting to all', message);
+	async broadcastToAll(message: WebsocketMessage) {
 		const messageStr = JSON.stringify(message);
-		this.participants.forEach((ws) => {
-			console.log('broadcasting to', ws.readyState);
+		this.participants.forEach((ws, userId) => {
 			if (ws.readyState === WebSocket.OPEN) {
 				ws.send(messageStr);
+			} else {
+				this.cleanupUser(userId);
 			}
 		});
 	}
 
-	broadcastToOthers(excludeUserId: string, message: WebsocketMessage) {
+	async broadcastToOthers(excludeUserId: string, message: WebsocketMessage) {
 		const messageStr = JSON.stringify(message);
 		this.participants.forEach((ws, userId) => {
 			if (userId !== excludeUserId && ws.readyState === WebSocket.OPEN) {
@@ -171,8 +155,7 @@ export class ConversationObject extends DurableObject<Env> {
 		});
 	}
 
-	// RPC method to store message
-	storeMessage(message: Message) {
+	async storeMessage(message: Message) {
 		this.ctx.storage.sql.exec(
 			`
 			INSERT INTO messages (id, userId, content, timestamp)
@@ -183,14 +166,13 @@ export class ConversationObject extends DurableObject<Env> {
 			message.content,
 			message.timestamp
 		);
-		this.broadcastToAll({
+		await this.broadcastToAll({
 			type: 'message',
 			data: message,
 		});
 	}
 
-	// RPC method to get conversation info
-	getInfo(): { participantCount: number; messageCount: number } {
+	async getInfo(): Promise<{ participantCount: number; messageCount: number }> {
 		const cursor = this.ctx.storage.sql.exec<{ count: number }>(`
 			SELECT COUNT(*) as count FROM messages
 		`);
@@ -202,14 +184,12 @@ export class ConversationObject extends DurableObject<Env> {
 		};
 	}
 
-	// RPC method to get participants
-	getParticipants(): string[] {
+	async getParticipants(): Promise<string[]> {
 		return Array.from(this.participants.keys());
 	}
 
-	// RPC method to get messages
-	getMessages(limit: number = 50, offset: number = 0): Message[] {
-		const cursor = this.ctx.storage.sql.exec<Message>(
+	async getMessages(limit: number = 50, offset: number = 0): Promise<Message[]> {
+		const cursor = this.ctx.storage.sql.exec(
 			`
 			SELECT id, userId, content, timestamp
 			FROM messages
@@ -220,6 +200,6 @@ export class ConversationObject extends DurableObject<Env> {
 			offset
 		);
 
-		return cursor.toArray().reverse(); // Return in chronological order
+		return cursor.toArray().reverse() as unknown as Message[];
 	}
 }

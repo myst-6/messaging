@@ -28,8 +28,7 @@
 		},
 		{
 			"new_sqlite_classes": [
-				"ConversationObject",
-				"ThingsObject"
+				"ConversationObject"
 			],
 			"tag": "v3"
 		}
@@ -53,7 +52,21 @@
 
 	"observability": {
 		"enabled": true
-	}
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "conversations-db",
+			"database_id": "2b5d1ae4-4a7e-42ab-8708-4db538f40200"
+		}
+	],
+	"secrets_store_secrets": [
+		{
+			"binding": "JWT_SECRET",
+			"secret_name": "JWT_SECRET",
+			"store_id": "853f0e70dc7c4bfa9bd550dab31969b9"
+		}
+	]
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
