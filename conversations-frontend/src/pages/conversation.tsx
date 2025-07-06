@@ -12,7 +12,7 @@ import {
   IconButton,
 } from "@chakra-ui/react";
 import { useAuth } from "@/lib/AuthContext";
-import { SystemMessage, useConversation } from "@/lib/useConversation";
+import { useConversation } from "@/lib/useConversation";
 import { useUsers } from "@/lib/useUsers";
 
 export default function Conversation() {
@@ -31,7 +31,8 @@ export default function Conversation() {
 
   const { messages, sendMessage } = useConversation(
     currentConversationId,
-    user?.id?.toString() || ""
+    user?.userId,
+    token
   );
 
   const scrollToBottom = () => {
@@ -60,11 +61,11 @@ export default function Conversation() {
   };
 
   const handleSendMessage = () => {
-    if (!messageInput.trim() || !user) return;
+    if (!messageInput.trim()) return;
 
     sendMessage({
       content: messageInput,
-      userId: user.id.toString(),
+      conversationId: currentConversationId,
     });
     setMessageInput("");
   };
@@ -208,7 +209,7 @@ export default function Conversation() {
                   <Box
                     key={message.id}
                     alignSelf={
-                      message.userId === user.id.toString()
+                      message.userId === user.userId.toString()
                         ? "flex-end"
                         : "flex-start"
                     }
@@ -217,12 +218,12 @@ export default function Conversation() {
                     <HStack gap={2} align="flex-start">
                       <Box
                         bg={
-                          message.userId === user.id.toString()
+                          message.userId === user.userId.toString()
                             ? "blue.500"
                             : "white"
                         }
                         color={
-                          message.userId === user.id.toString()
+                          message.userId === user.userId.toString()
                             ? "white"
                             : "black"
                         }

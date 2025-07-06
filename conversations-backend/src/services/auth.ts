@@ -13,7 +13,7 @@ export interface LoginRequest {
 }
 
 export interface AuthUser {
-	id: number;
+	userId: number;
 	username: string;
 }
 
@@ -55,7 +55,7 @@ function generateSalt(): string {
 }
 
 // Web Crypto API JWT functions
-async function signJWT(payload: any, secret: string): Promise<string> {
+async function signJWT(payload: AuthUser, secret: string): Promise<string> {
 	const header = { alg: 'HS256', typ: 'JWT' };
 	const now = Math.floor(Date.now() / 1000);
 	const exp = now + 24 * 60 * 60; // 24 hours
@@ -84,7 +84,7 @@ async function signJWT(payload: any, secret: string): Promise<string> {
 	return data + '.' + encodedSignature;
 }
 
-async function verifyJWT(token: string, secret: string): Promise<any> {
+async function verifyJWT(token: string, secret: string): Promise<AuthUser> {
 	const parts = token.split('.');
 	if (parts.length !== 3) {
 		throw new Error('Invalid token format');
@@ -151,7 +151,7 @@ export class AuthService {
 		return {
 			token,
 			user: {
-				id: newUser.id,
+				userId: newUser.id,
 				username: newUser.username,
 			},
 		};
@@ -180,7 +180,7 @@ export class AuthService {
 		return {
 			token,
 			user: {
-				id: foundUser.id,
+				userId: foundUser.id,
 				username: foundUser.username,
 			},
 		};
@@ -188,7 +188,7 @@ export class AuthService {
 
 	async verifyToken(token: string): Promise<AuthUser> {
 		try {
-			const decoded = (await verifyJWT(token, this.jwtSecret)) as AuthUser;
+			const decoded = await verifyJWT(token, this.jwtSecret);
 			return decoded;
 		} catch (error) {
 			throw new Error('Invalid token');

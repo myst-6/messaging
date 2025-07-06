@@ -5,7 +5,7 @@ import { AuthService } from '../services/auth';
 import { createDb } from '../db';
 import { HonoEnv } from './router';
 import { authServiceMiddleware } from '../middleware/auth';
-import { users } from '../db/schema';
+import { User, users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 const registerSchema = z.object({
@@ -73,7 +73,7 @@ const routes = [
 		const db = createDb(c.env.DB);
 		const result = await db
 			.select({
-				id: users.id,
+				userId: users.id,
 				username: users.username,
 				createdAt: users.createdAt,
 				updatedAt: users.updatedAt,

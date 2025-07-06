@@ -22,18 +22,19 @@ export function authServiceMiddleware() {
 			c.set('authService', authService);
 			await next();
 		} catch (error) {
-			return c.json({ error: 'Invalid token' }, 401);
+			return c.json({ error: 'Failed to initialize auth service' }, 500);
 		}
 	};
 }
 
 export function authMiddleware() {
 	return async (c: Context<HonoEnv>, next: Next) => {
-		const authHeader = c.req.header('Authorization');
-		if (!authHeader || !authHeader.startsWith('Bearer ')) return c.json({ error: 'Authorization header required' }, 401);
-		const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+		let token = c.req.query('token');
+		if (!token) token = (await c.req.json()).token;
+		if (!token) return c.json({ error: 'Token required' }, 401);
 		const authService = c.get('authService');
 		const user = await authService.verifyToken(token);
+		console.log('authUser', user);
 		c.set('authUser', user);
 		await next();
 	};

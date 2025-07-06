@@ -23,22 +23,23 @@ export type SystemMessage = {
     }
 );
 
-type DeepReadonly<T> = {
-  readonly [K in keyof T]: T[K] extends object ? DeepReadonly<T[K]> : T[K];
-} & {};
-
-export function useConversation(conversationId: string, userId: string) {
-  const [messages, setMessages] = useState<
-    DeepReadonly<(Message | SystemMessage)[]>
-  >([]);
+export function useConversation(
+  conversationId: string,
+  userId: number | undefined,
+  token: string | null
+) {
+  const [messages, setMessages] = useState<(Message | SystemMessage)[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     setMessages([]);
+    console.log({ token, userId, conversationId });
+    if (!token || !userId || !conversationId) return;
 
     const url = new URL(client.conversation.join.$url());
     url.searchParams.set("conversationId", conversationId);
-    url.searchParams.set("userId", userId);
+    url.searchParams.set("userId", userId.toString());
+    url.searchParams.set("token", token);
     wsRef.current = new WebSocket(url.toString());
 
     wsRef.current.onmessage = (event) => {
@@ -93,15 +94,17 @@ export function useConversation(conversationId: string, userId: string) {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [conversationId, userId]);
+  }, [conversationId, token, userId]);
 
   function sendMessage(message: MessageDraft) {
+    if (!token) return;
+
     client.conversation.messages.$post({
       json: {
         content: message.content,
-        userId: userId,
-        conversationId: conversationId,
-      } as unknown as MessageDraft,
+        token,
+        conversationId,
+      },
     });
   }
 
